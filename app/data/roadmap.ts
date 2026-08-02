@@ -68,6 +68,7 @@ export const roadmapPhases: readonly RoadmapPhase[] = [
     topics: [
       { id: "frontend", title: "Frontend", description: "สร้าง UI ที่ responsive และ accessible" },
       { id: "backend", title: "Backend", description: "ออกแบบ server และ business logic" },
+      { id: "framework", title: "Framework", description: "ใช้ framework ในการพัฒนา backend เช่น Next.js, React" },
       { id: "mobile", title: "Mobile", description: "พัฒนา mobile applications" },
       { id: "quality", title: "Clean Code & Testing", description: "เขียนโค้ดที่ดูแลง่ายและทดสอบได้" },
     ],

@@ -21,6 +21,8 @@ export const metadata: Metadata = {
     "เส้นทางการเรียนรู้ Software Developer ยุค AI 2026 พร้อมระบบบันทึกความก้าวหน้า คลัง Prompt และไอเดียโปรเจกต์",
 };
 
+const themeScript = `(function(){try{var t=localStorage.getItem('ai-roadmap-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})()`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -30,7 +32,11 @@ export default function RootLayout({
     <html
       lang="th"
       className={`${spaceGrotesk.variable} ${promptFont.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
