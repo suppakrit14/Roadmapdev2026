@@ -2,184 +2,198 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { projectIdeas, promptLibrary, roadmapPhases } from "../data/roadmap";
-import { calculateCompletion, sanitizeCompletedTopicIds, toggleCompletedTopic } from "../lib/progress";
+import {
+  calculateCompletion,
+  sanitizeCompletedTopicIds,
+  toggleCompletedTopic,
+} from "../lib/progress";
 
-type Theme = "light" | "dark";
+type Theme = "dark" | "light";
 
-const allPhaseIds = roadmapPhases.map((phase) => phase.id);
-const allTopics = roadmapPhases.flatMap((phase) => phase.topics);
+const allPhaseIds = roadmapPhases.map((p) => p.id);
+const allTopics = roadmapPhases.flatMap((p) => p.topics);
 
 export default function RoadmapDashboard() {
   const [done, setDone] = useState<string[]>([]);
   const [openPhases, setOpenPhases] = useState<string[]>([roadmapPhases[0].id]);
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>("dark");
   const [ready, setReady] = useState(false);
   const [copiedCategory, setCopiedCategory] = useState<string | null>(null);
 
-  // Restore saved state from LocalStorage on mount
+  /* ---- Restore from localStorage ---- */
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
-        const savedDone = localStorage.getItem("ai-roadmap-completed-topic-ids");
-        setDone(sanitizeCompletedTopicIds(JSON.parse(savedDone ?? "[]")));
+        const raw = localStorage.getItem("ai-roadmap-completed-topic-ids");
+        setDone(sanitizeCompletedTopicIds(JSON.parse(raw ?? "[]")));
       } catch {
         setDone([]);
       }
 
-      const savedTheme = localStorage.getItem("ai-roadmap-theme");
-      setTheme(savedTheme === "dark" || savedTheme === "light" ? savedTheme : "light");
+      const saved = localStorage.getItem("ai-roadmap-theme");
+      setTheme(saved === "light" || saved === "dark" ? saved : "dark");
       setReady(true);
     }, 0);
-
     return () => window.clearTimeout(timer);
   }, []);
 
-  // Save state back to LocalStorage
+  /* ---- Persist ---- */
   useEffect(() => {
-    if (ready) {
-      localStorage.setItem("ai-roadmap-completed-topic-ids", JSON.stringify(done));
-    }
+    if (ready) localStorage.setItem("ai-roadmap-completed-topic-ids", JSON.stringify(done));
   }, [done, ready]);
 
   useEffect(() => {
-    if (ready) {
-      localStorage.setItem("ai-roadmap-theme", theme);
-    }
+    if (ready) localStorage.setItem("ai-roadmap-theme", theme);
   }, [theme, ready]);
 
+  /* ---- Derived ---- */
   const progress = useMemo(() => calculateCompletion(done, allTopics.length), [done]);
 
-  const togglePhaseOpen = (id: string) => {
-    setOpenPhases((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
-    );
-  };
+  const nextPhase = useMemo(
+    () => roadmapPhases.find((p) => p.topics.some((t) => !done.includes(t.id))),
+    [done],
+  );
 
-  const expandAllPhases = () => setOpenPhases([...allPhaseIds]);
-  const collapseAllPhases = () => setOpenPhases([]);
+  /* ---- Handlers ---- */
+  const togglePhase = (id: string) =>
+    setOpenPhases((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
 
-  const copyPrompt = async (category: string, promptText: string) => {
+  const expandAll = () => setOpenPhases([...allPhaseIds]);
+  const collapseAll = () => setOpenPhases([]);
+
+  const copyPrompt = async (cat: string, text: string) => {
     try {
-      await navigator.clipboard.writeText(promptText);
-      setCopiedCategory(category);
+      await navigator.clipboard.writeText(text);
+      setCopiedCategory(cat);
       setTimeout(() => setCopiedCategory(null), 2000);
     } catch {
-      setCopiedCategory(null);
+      /* noop */
     }
   };
 
-  const nextPhase = useMemo(() => {
-    return roadmapPhases.find((phase) => phase.topics.some((topic) => !done.includes(topic.id)));
-  }, [done]);
-
+  /* ================================================================
+     RENDER
+     ================================================================ */
   return (
     <div className="app" data-theme={theme}>
-      {/* Header Navigation */}
+      {/* ---- HEADER ---- */}
       <header className="header-nav">
         <a className="brand" href="#top" aria-label="devpath home">
-          <b>/</b>
-          <span>devpath</span>
+          <span className="slash">//</span> devpath
         </a>
 
-        <nav className="desktop-nav" aria-label="Main Navigation">
+        <nav className="desktop-nav" aria-label="Main navigation">
           <a href="#roadmap">Roadmap</a>
           <a href="#prompts">Prompts</a>
           <a href="#projects">Projects</a>
         </nav>
 
         <div className="header-actions">
-          <div className="progress-pill-badge" title="คะแนนรวมความคืบหน้า">
-            <span className="dot" />
-            <span>{progress.percentage}% Completed</span>
+          <div className="progress-pill">
+            <span className="live-dot" />
+            <span>{progress.percentage}%</span>
           </div>
 
           <button
-            className="theme-toggle-btn"
+            className="theme-btn"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            aria-label="สลับโหมดมืด/โหมดสว่าง"
+            aria-label="Toggle theme"
           >
-            <span>{theme === "dark" ? "☀️ Light" : "🌙 Dark"}</span>
+            {theme === "dark" ? "☀" : "☾"}
           </button>
         </div>
       </header>
 
       <main id="top">
-        {/* Hero Section */}
-        <section className="hero shell">
-          <div>
-            <span className="section-pill-kicker">● YOUR 2026 LEARNING SYSTEM</span>
+        {/* ---- HERO ---- */}
+        <section className="hero-section shell">
+          <div className="hero-left">
+            <div className="hero-kicker">YOUR 2026 LEARNING SYSTEM</div>
+
             <h1 className="hero-title">
-              สร้างเส้นทาง <br />
-              <span className="highlight-text">Software Developer</span> <br />
+              สร้างเส้นทาง
+              <br />
+              <span className="accent-word">Software Developer</span>
+              <br />
               ยุค AI ของคุณเอง
             </h1>
-            <p className="hero-subtitle">
-              Roadmap สำหรับคนที่อยากใช้ AI เป็นคู่คิดเพื่อสร้างของจริงได้อย่างมั่นใจ
+
+            <p className="hero-desc">
+              Roadmap สำหรับคนที่อยากใช้ AI เป็นคู่คิด เพื่อสร้างของจริงได้อย่างมั่นใจ
               ครอบคลุมทักษะสำคัญตั้งแต่พื้นฐานไปจนถึงงาน Production
             </p>
-            <a className="cta-button" href="#roadmap">
-              <span>เริ่มเรียนเลย</span>
-              <span aria-hidden="true">↓</span>
+
+            <a className="cta-btn" href="#roadmap">
+              เริ่มเรียนเลย <span className="arrow">↓</span>
             </a>
           </div>
 
-          <aside className="progress-card">
-            <div className="progress-card-header">
-              <span className="status-badge">
-                <span className="live-dot" />
-                Learning Status
-              </span>
-              <span style={{ fontSize: "12px", fontWeight: 700, opacity: 0.8 }}>● Active</span>
-            </div>
+          {/* Cyber Progress Terminal */}
+          <div className="hero-right">
+            <div className="terminal-card">
+              <div className="terminal-bar">
+                <div className="terminal-dots">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <span className="terminal-bar-title">progress.terminal</span>
+              </div>
 
-            <div className="progress-card-stat">
-              <span className="progress-card-number">{progress.percentage}</span>
-              <span className="progress-card-unit">%</span>
-            </div>
+              <div className="terminal-body">
+                <div className="terminal-stat-label">Learning Progress</div>
+                <div className="terminal-stat">
+                  <span className="terminal-stat-number">{progress.percentage}</span>
+                  <span className="terminal-stat-unit">%</span>
+                </div>
 
-            <div className="progress-bar-container">
-              <div className="progress-bar-fill" style={{ width: `${progress.percentage}%` }} />
-            </div>
+                <div className="cyber-progress-bar">
+                  <div
+                    className="cyber-progress-fill"
+                    style={{ width: `${progress.percentage}%` }}
+                  />
+                </div>
 
-            <div className="progress-card-next">
-              <small>UP NEXT TO LEARN</small>
-              <b>
-                {nextPhase ? `Phase ${nextPhase.number} — ${nextPhase.titleThai}` : "✓ เรียนครบทุก Phase แล้ว!"}
-              </b>
+                <div className="terminal-next">
+                  <div className="terminal-next-label">▸ up_next</div>
+                  <div className="terminal-next-value">
+                    {nextPhase
+                      ? `Phase ${nextPhase.number} — ${nextPhase.titleThai}`
+                      : "✓ เรียนครบทุก Phase แล้ว!"}
+                  </div>
+                </div>
+              </div>
             </div>
-          </aside>
+          </div>
         </section>
 
-        {/* Stats Bar */}
-        <section className="stats-bar">
+        {/* ---- STATS ---- */}
+        <section className="stats-strip">
           <div className="shell stats-grid">
-            <div className="stat-item">
-              <span className="stat-number">06</span>
-              <div className="stat-label">
+            <div className="stat-cell">
+              <span className="stat-num">06</span>
+              <div className="stat-info">
                 <strong>Learning Phases</strong>
                 <span>ครอบคลุมทุกสเต็ป</span>
               </div>
             </div>
-
-            <div className="stat-item">
-              <span className="stat-number">{allTopics.length}</span>
-              <div className="stat-label">
+            <div className="stat-cell">
+              <span className="stat-num">{allTopics.length}</span>
+              <div className="stat-info">
                 <strong>Core Topics</strong>
                 <span>หัวข้อทักษะสำคัญ</span>
               </div>
             </div>
-
-            <div className="stat-item">
-              <span className="stat-number">05</span>
-              <div className="stat-label">
+            <div className="stat-cell">
+              <span className="stat-num">05</span>
+              <div className="stat-info">
                 <strong>AI Prompts</strong>
                 <span>คลังคำสั่งช่วยเขียนโค้ด</span>
               </div>
             </div>
-
-            <div className="stat-item">
-              <span className="stat-number">06</span>
-              <div className="stat-label">
+            <div className="stat-cell">
+              <span className="stat-num">06</span>
+              <div className="stat-info">
                 <strong>Project Ideas</strong>
                 <span>ไอเดียสร้างผลงานจริง</span>
               </div>
@@ -187,82 +201,80 @@ export default function RoadmapDashboard() {
           </div>
         </section>
 
-        {/* Roadmap Section */}
+        {/* ---- ROADMAP ---- */}
         <section className="shell section" id="roadmap">
           <div className="section-header">
-            <div className="section-header-left">
-              <span className="section-pill-kicker">THE ROADMAP</span>
-              <h2>
-                เดินทีละ Phase <br />
+            <div>
+              <div className="section-kicker">THE ROADMAP</div>
+              <h2 className="section-title">
+                เดินทีละ Phase
+                <br />
                 ไปให้ถึงสิ่งที่อยากเป็น
               </h2>
             </div>
 
-            <div className="controls-group">
-              <button className="control-btn" onClick={expandAllPhases} title="เปิดดูรายละเอียดทุก Phase">
-                <span>⊕ เปิดทั้งหมด</span>
+            <div className="controls-row">
+              <button className="ctrl-btn" onClick={expandAll}>
+                ⊕ เปิดทั้งหมด
               </button>
-              <button className="control-btn" onClick={collapseAllPhases} title="พับปิดทุก Phase">
-                <span>⊖ พับทั้งหมด</span>
+              <button className="ctrl-btn" onClick={collapseAll}>
+                ⊖ พับทั้งหมด
               </button>
             </div>
           </div>
 
-          <div className="roadmap-phases">
+          <div className="roadmap-list">
             {roadmapPhases.map((phase) => {
-              const completedCount = phase.topics.filter((topic) => done.includes(topic.id)).length;
-              const isExpanded = openPhases.includes(phase.id);
+              const cnt = phase.topics.filter((t) => done.includes(t.id)).length;
+              const isOpen = openPhases.includes(phase.id);
 
               return (
                 <article
                   key={phase.id}
-                  className={`phase-card phase-card--${phase.accent} ${isExpanded ? "expanded" : ""}`}
+                  className={`phase-card ${isOpen ? "is-open" : ""}`}
                 >
                   <button
-                    className="phase-header-btn"
-                    onClick={() => togglePhaseOpen(phase.id)}
-                    aria-expanded={isExpanded}
+                    className="phase-btn"
+                    onClick={() => togglePhase(phase.id)}
+                    aria-expanded={isOpen}
                   >
-                    <div className="phase-number-badge">{phase.number}</div>
+                    <span className="phase-num">{phase.number}</span>
 
-                    <div className="phase-title-group">
-                      <div className="phase-title-main">
+                    <div className="phase-titles">
+                      <div className="phase-main-title">
                         <strong>{phase.titleThai}</strong>
-                        <span className="phase-en">({phase.title})</span>
+                        <span className="en-sub">{phase.title}</span>
                       </div>
-                      <p className="phase-tagline">{phase.tagline}</p>
+                      <span className="phase-tagline">{phase.tagline}</span>
                     </div>
 
-                    <div className="phase-meta">
-                      <span className="phase-progress-pill">
-                        {completedCount} / {phase.topics.length} สำเร็จแล้ว
+                    <div className="phase-end">
+                      <span className="phase-count-pill">
+                        {cnt}/{phase.topics.length}
                       </span>
-                      <div className="toggle-icon-badge" aria-hidden="true">
-                        {isExpanded ? "−" : "+"}
-                      </div>
+                      <span className="toggle-indicator">{isOpen ? "−" : "+"}</span>
                     </div>
                   </button>
 
-                  {isExpanded && (
-                    <div className="topics-container">
+                  {isOpen && (
+                    <div className="topics-body">
                       {phase.topics.map((topic) => {
-                        const isChecked = done.includes(topic.id);
-
+                        const checked = done.includes(topic.id);
                         return (
                           <label
                             key={topic.id}
-                            className={`topic-item-label ${isChecked ? "checked" : ""}`}
+                            className={`topic-row ${checked ? "is-done" : ""}`}
                           >
                             <input
                               type="checkbox"
-                              checked={isChecked}
+                              checked={checked}
                               onChange={() =>
-                                setDone((current) => toggleCompletedTopic(current, topic.id))
+                                setDone((v) => toggleCompletedTopic(v, topic.id))
                               }
                             />
-                            <div className="custom-checkbox">{isChecked ? "✓" : ""}</div>
+                            <span className="cyber-check">{checked ? "✓" : ""}</span>
 
-                            <div className="topic-info">
+                            <div className="topic-text">
                               <strong>{topic.title}</strong>
                               <p>{topic.description}</p>
                             </div>
@@ -277,36 +289,34 @@ export default function RoadmapDashboard() {
           </div>
         </section>
 
-        {/* AI Prompt Library Section */}
+        {/* ---- AI PROMPT LIBRARY ---- */}
         <section className="prompts-section" id="prompts">
           <div className="shell">
             <div className="section-header">
-              <div className="section-header-left">
-                <span className="section-pill-kicker">AI PROMPT LIBRARY</span>
-                <h2>
-                  ถามให้ดี <br />
+              <div>
+                <div className="section-kicker">AI PROMPT LIBRARY</div>
+                <h2 className="section-title">
+                  ถามให้ดี
+                  <br />
                   AI ก็ช่วยได้ไกล
                 </h2>
               </div>
             </div>
 
-            <div className="cards-grid">
+            <div className="prompt-grid">
               {promptLibrary.map((item) => (
                 <article className="prompt-card" key={item.category}>
-                  <div className="prompt-card-top">
-                    <span className="prompt-category-badge">
-                      <span>{item.icon}</span>
-                      <span>{item.category}</span>
-                    </span>
-                  </div>
+                  <span className="prompt-badge">
+                    {item.icon} {item.category}
+                  </span>
 
-                  <p className="prompt-text">“{item.prompt}”</p>
+                  <div className="prompt-body">"{item.prompt}"</div>
 
                   <button
-                    className="copy-prompt-btn"
+                    className={`copy-btn ${copiedCategory === item.category ? "is-copied" : ""}`}
                     onClick={() => copyPrompt(item.category, item.prompt)}
                   >
-                    <span>{copiedCategory === item.category ? "คัดลอกแล้ว ✓" : "Copy Prompt ↗"}</span>
+                    {copiedCategory === item.category ? "✓ คัดลอกแล้ว" : "Copy Prompt →"}
                   </button>
                 </article>
               ))}
@@ -314,62 +324,54 @@ export default function RoadmapDashboard() {
           </div>
         </section>
 
-        {/* Project Ideas Section */}
-        <section className="shell section projects-section" id="projects">
+        {/* ---- PROJECT IDEAS ---- */}
+        <section className="shell section" id="projects">
           <div className="section-header">
-            <div className="section-header-left">
-              <span className="section-pill-kicker">BUILD TO LEARN</span>
-              <h2>
-                ผลงานที่บอกได้ว่า <br />
+            <div>
+              <div className="section-kicker">BUILD TO LEARN</div>
+              <h2 className="section-title">
+                ผลงานที่บอกได้ว่า
+                <br />
                 คุณทำอะไรเป็น
               </h2>
             </div>
           </div>
 
-          <div className="cards-grid">
-            {projectIdeas.map((project, idx) => (
-              <article className="project-card" key={project.title}>
-                <div>
-                  <div className="project-card-header">
-                    <span className={`level-badge ${project.level.toLowerCase()}`}>
-                      {project.level}
-                    </span>
-                    <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--muted)" }}>
-                      0{idx + 1}
-                    </span>
-                  </div>
-
-                  <h3 className="project-title">{project.title}</h3>
-                  <p className="project-desc">{project.description}</p>
+          <div className="project-grid">
+            {projectIdeas.map((proj, i) => (
+              <article className="project-card" key={proj.title}>
+                <div className="project-card-top">
+                  <span className={`level-tag ${proj.level.toLowerCase()}`}>{proj.level}</span>
+                  <span className="project-idx">0{i + 1}</span>
                 </div>
-
-                <span className="project-stack-tag">🛠 {project.stack}</span>
+                <h3 className="project-title">{proj.title}</h3>
+                <p className="project-desc">{proj.description}</p>
+                <span className="project-stack">⚡ {proj.stack}</span>
               </article>
             ))}
           </div>
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="footer-nav">
-        <div className="shell footer-container">
+      {/* ---- FOOTER ---- */}
+      <footer className="site-footer">
+        <div className="shell footer-row">
           <a className="brand" href="#top">
-            <b>/</b>
-            <span>devpath</span>
+            <span className="slash">//</span> devpath
           </a>
 
-          <span>Build. Learn. Repeat. — AI Developer Roadmap 2026</span>
+          <span className="footer-tagline">Build. Learn. Repeat. — 2026</span>
 
-          <a className="back-top" href="#top">
-            <span>Back to top ↑</span>
+          <a className="back-top-btn" href="#top">
+            Back to top ↑
           </a>
         </div>
       </footer>
 
-      {/* Toast alert on copied prompt */}
+      {/* Toast */}
       {copiedCategory && (
-        <div className="toast-copy" role="status">
-          ✓ คัดลอก Prompt หมวด {copiedCategory} เรียบร้อยแล้ว!
+        <div className="toast" role="status">
+          คัดลอก Prompt «{copiedCategory}» สำเร็จ
         </div>
       )}
     </div>
